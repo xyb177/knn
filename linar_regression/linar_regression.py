@@ -3,12 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.datasets import fetch_openml
+from sklearn.linear_model import Lasso
+
 
 np.set_printoptions(suppress = True)
 def standardization (X):
-    maxn = X.max(axis=0)
-    minn = X.min(axis=0)
-    return (X -minn) /(maxn-minn)
+    mean = np.mean(X)
+    std = np.std(X)
+    return (X-mean) / std
 def load_data():
     data = pd.read_csv("housing.csv",header = None)
     row = data.shape[0]
@@ -27,19 +29,19 @@ def load_data():
    
     X_train = train_set[:,:-1]
     Y_train = train_set[:,-1]
-    Y_train.reshape(-1,1)
+    Y_train = Y_train.reshape(-1,1)
     print(Y_train.shape)
     X_test = test_set[:,:-1]
     Y_test = test_set[:,-1]
+    Y_test = Y_test.reshape(-1,1)
     return X_train,Y_train,X_test,Y_test
 
 
 class linar_regression():
-    def fitness(self,X_train,Y_train, learning_rate=0.5, lamda = 0.03):
+    def fitness(self,X_train,Y_train, learning_rate=0.01,lamda = 0.03):
         m,n = X_train.shape
         X = np.c_[X_train, np.ones(m)]
         self.w = np.zeros([n+1,1])
-        print(X.shape , self.w.shape)
         max_cnt = int(1e8)
         last_better = 0  # 上一次得到较好学习误差的迭代学习次数
         last_Jerr = int(1e8)  # 上一次得到较好学习误差的误差函数值
@@ -51,7 +53,7 @@ class linar_regression():
           
             print(predict.shape)
             self.w  = self.w-learning_rate * ((X.T @ (X.dot(self.w)-Y_train)) / m + lamda * self.w)
-            print(self.w.shape)
+            print(self.w)
             if loss < last_Jerr - threshold_value:          # 检测损失函数的变化值，提前结束迭代
                 last_Jerr = loss
                 last_better = i
@@ -68,18 +70,30 @@ class linar_regression():
         Y = X.dot(self.w)
         return  Y       
 
+def get_lasso_model(X_train,Y_train,learning_rate = 0.01):
+    model = Lasso(alpha=learning_rate)
+    model.fit(X_train, Y_train)
+    return model
 
 if __name__ == "__main__":
     X_train,Y_train,X_test,Y_test = load_data()
     
     model = linar_regression()
+    X_train=standardization(X_train)
+    X_test = standardization(X_test)
     model.fitness(X_train,Y_train)
-    Y = model.predict(X_test)
-    t = np.arange(len(Y))
-    print(Y,Y_test)
+    Y1 = model.predict(X_test)
+    t = np.arange(len(Y1))
+    print(Y1,Y_test)
+
+
+    model2 = get_lasso_model(X_train,Y_train)
+    Y2 = model2.predict(X_test).reshape(-1,1)
+
     plt.figure(facecolor='w')
     plt.plot(t, Y_test, 'c-', lw=1.6, label=u'actual value')
-    plt.plot(t, Y, 'm-', lw=1.6, label=u'estimated value')
+    plt.plot(t, Y1, 'm-', lw=1.6, label=u'estimated value')
+    plt.plot(t, Y2, 'y-', lw=1.6, label=u'estimated value')
     plt.legend(loc='best')
     plt.title(u'Boston house price', fontsize=18)
     plt.xlabel(u'case id', fontsize=15)
